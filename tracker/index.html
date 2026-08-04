@@ -157,6 +157,14 @@
     color: var(--lcd-ink); border: 1px solid var(--shell-edge); border-radius: 6px;
     box-shadow: inset 0 2px 3px rgba(0,0,0,.35);
   }
+  /* keyboard toggle: barely-there chrome, sits beside the milady # inputs */
+  .kbtoggle {
+    background: transparent; border: none; box-shadow: none;
+    padding: 2px 4px; font-size: 12px; line-height: 1;
+    color: var(--ink); opacity: .45;
+  }
+  .kbtoggle:hover { opacity: .8; filter: none; }
+  .kbtoggle:active { box-shadow: none; transform: none; }
   .dlgrow { margin-top: 12px; display: flex; gap: 8px; justify-content: center; }
   .dlgrow button { font-size: 10px; padding: 8px 10px; }
   #dlgRandom { background: linear-gradient(180deg, #eab0cd, #d18cb0); color: #5e2846; }
@@ -198,7 +206,8 @@
   <div id="status">loading…</div>
   <label>milady # <input id="milady" type="text" inputmode="numeric" placeholder="1–1111" style="width:56px">
     <button id="loadMilady">load</button>
-    <button id="randMilady" title="random milady">🎲</button></label>
+    <button id="randMilady" title="random milady">🎲</button>
+    <button id="kbMilady" class="kbtoggle" title="toggle keyboard">⌨</button></label>
   <label><input type="checkbox" id="mirror" checked> mirror</label>
   <label><input type="checkbox" id="arms" checked> arm tracking</label>
   <label><input type="checkbox" id="camMouth" checked> camera mouth</label>
@@ -246,7 +255,7 @@
   <div class="dlgbox">
     <div class="dlgtitle">POCKIT MILADY</div>
     <div class="dlglabel">token # (blank = default milady)</div>
-    <input id="dlgId" type="text" inputmode="numeric" placeholder="1–1111">
+    <input id="dlgId" type="text" inputmode="numeric" placeholder="1–1111"><button id="dlgKb" class="kbtoggle" title="toggle keyboard">⌨</button>
     <div class="dlgrow">
       <button id="dlgLoad">Load</button>
       <button id="dlgRandom">🎲 Random</button>
@@ -824,6 +833,17 @@ document.getElementById('milady').addEventListener('keydown', e => {
 // milady picker dialog (used by the big-button mode)
 const miladyDlg = document.getElementById('miladyDlg');
 const dlgId = document.getElementById('dlgId');
+// ⌨ flips the milady # inputs between the number pad (default) and the full
+// keyboard; mobile keyboards only re-read inputmode on focus, hence blur+focus
+let kbText = false;
+const kbInputs = [document.getElementById('milady'), dlgId];
+function toggleKb(focusEl) {
+  kbText = !kbText;
+  for (const el of kbInputs) el.inputMode = kbText ? 'text' : 'numeric';
+  if (focusEl) { focusEl.blur(); focusEl.focus(); }
+}
+document.getElementById('kbMilady').addEventListener('click', e => { e.preventDefault(); toggleKb(document.getElementById('milady')); });
+document.getElementById('dlgKb').addEventListener('click', () => toggleKb(dlgId));
 function openMiladyDlg() {
   dlgId.value = miladyId;
   miladyDlg.classList.remove('hidden');
