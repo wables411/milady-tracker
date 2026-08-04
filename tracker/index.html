@@ -640,7 +640,7 @@ function applyCamera() {
   const lookY = camH * 0.55 * (1 - t) + (camH - 0.23 * camS) * t;
   // vertical FOV is fixed, so narrow (portrait) windows would crop the arms —
   // pull the camera back until the body's width fits again
-  const fit = Math.max(1, 0.7 / camera.aspect);
+  const fit = Math.max(1, 0.7 / Math.max(0.1, camera.aspect || 1)); // || 1: hidden windows report 0×0 → NaN aspect
   camera.position.set(0, lookY + 0.03 * camS, 1.35 * camS * fit / camZoom);
   camera.lookAt(0, lookY, 0);
 }
@@ -1326,6 +1326,7 @@ window.__resize = (w = 640, h = 800) => {
   renderer.setSize(w, h);
   composer.setSize(w, h);
   fisheyePass.uniforms.aspect.value = w / h;
+  applyCamera();
 };
 
 // debug: step the animation manually (rAF doesn't fire in hidden windows)

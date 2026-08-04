@@ -18,8 +18,8 @@
 Milady Tracker is a single self-contained HTML page. Rendering uses three.js with @pixiv/three-vrm; tracking uses MediaPipe Tasks Vision (FaceLandmarker and PoseLandmarker), all loaded from public CDNs. Pockit VRMs (VRM 0.x, Mixamo-rigged) are fetched per token from the Pockit CDN, which serves them with open CORS headers, so avatar swapping incurs no hosting cost. The Pockit asset pipeline is published in the moviemaker repository under the Viral Public License.<ref>https://github.com/prnthh/moviemaker/tree/main/generation — Pockit 3D asset library and generation pipeline.</ref>
 
 == Source ==
-* Repository (code, default model, and issue tracker): https://github.com/wables411/milady-tracker ''(pending publish)''
-* Live hosted page: https://wables411.github.io/milady-tracker/tracker/ ''(pending publish)''
+* Repository (code, default model, and issue tracker): https://github.com/wables411/milady-tracker
+* Live hosted page: https://wables411.github.io/milady-tracker/tracker/
 
 == References ==
 <references />
