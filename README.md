@@ -45,7 +45,7 @@ toggles).
 
 - **Mouse wheel / pinch** — zoom between full body and face close-up.
 - **🎯 Fix Head** — re-zero your neutral head pose.
-- **🖼 BG** — green → white → black → smiley → image → transparent
+- **🖼 BG** — green → white → black → cult → image → transparent
   (drag & drop any picture to use it as the background).
 - **⏺ Record** — capture avatar + background to a `.webm` download
   (2 min max; first click asks for the mic so clips have voice).

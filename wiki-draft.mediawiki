@@ -4,7 +4,7 @@
 * '''Face tracking''' — head pose, blinking, and mouth movement from the webcam (jaw and rounded-vowel detection, with auto-calibration and an optional microphone-volume fallback).
 * '''Arm and torso tracking''' — shoulders, elbows, and wrists follow the streamer, and the torso twists and leans with the shoulder line; everything relaxes to an idle pose with breathing sway when out of frame.
 * '''Any Pockit Milady''' — enter a token number (1–1111), or pick one at random, and that Milady's VRM loads directly from the official per-token endpoint;<ref>https://pockit.world/milady — collection page with per-token VRM/GLB downloads.</ref> the choice persists. Pockit models ship without mouth blendshapes, so the tracker repaints the model's mouth texture at load to restore mouth movement.
-* '''Backgrounds''' — transparent, green screen, white, black, a built-in smiley, or any image (file picker or drag-and-drop; saved between sessions).
+* '''Backgrounds''' — transparent, green screen, white, black, the cult smiley, or any image (file picker or drag-and-drop; saved between sessions).
 * '''Recording''' — one-button capture of the avatar plus background to a downloadable .webm clip (up to two minutes), with microphone audio when permitted.
 * '''FX''' — toggleable sparkles, hearts, multicolor hue-cycle, CRT scanlines, and a fisheye lens, all lightweight.
 * The interface chrome is styled after [[Beetleboy]]'s console aesthetic.
