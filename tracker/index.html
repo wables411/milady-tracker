@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Milady Tracker</title>
+<link rel="icon" href="milady.ico">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#a985d1">
+<!-- iOS Add to Home Screen: full-screen app with the milady icon -->
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Milady">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/silkscreen@5/index.min.css">
 <style>
   /* Beetleboy-style console chrome: molded-plastic modules, embossed
@@ -16,7 +24,9 @@
     --tan1: #d2bd94; --tan2: #b39c73; --tan-ink: #584a2c;
     --lcd1: #9fae92; --lcd2: #a9b79b; --lcd-ink: #2f3d26;
   }
-  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; overscroll-behavior: none; }
+  /* the avatar canvas owns its touch gestures: pinch = camera zoom, never page zoom */
+  body > canvas { touch-action: none; }
   body.green { background: #00ff00; }
   body.magenta { background: #ff00ff; }
   body.white { background: #ffffff; }
@@ -88,6 +98,7 @@
     display: flex; flex-wrap: wrap; justify-content: center;
     width: max-content; /* left:50% halves shrink-to-fit width — size to content instead */
     max-width: calc(100vw - 16px); box-sizing: border-box;
+    user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
     gap: 10px; z-index: 20; padding: 12px 14px;
     background: linear-gradient(180deg, var(--tray1), var(--tray2));
     border: 2px solid var(--tray-edge); border-radius: 18px;
@@ -165,6 +176,20 @@
     #bigbar button { min-width: 0; flex: 1 0 auto; font-size: 9px; padding: 9px 6px; }
     #miladyDlg .dlgbox { max-width: calc(100vw - 32px); }
   }
+  /* landscape phones: a bottom row would eat the avatar's height — dock the
+     buttons as a compact column on the left edge instead (scrolls if it must),
+     and shift the settings panel to the right so they don't overlap */
+  @media (orientation: landscape) and (max-height: 500px) {
+    #bigbar {
+      left: 8px; top: 50%; bottom: auto; transform: translateY(-50%);
+      flex-direction: column; flex-wrap: nowrap; justify-content: flex-start;
+      width: auto; max-width: none; max-height: calc(100vh - 16px);
+      overflow-y: auto; gap: 5px; padding: 7px;
+    }
+    #bigbar button { min-width: 0; flex: 0 0 auto; font-size: 9px; padding: 8px 7px; }
+    #ui { left: auto; right: 10px; }
+    #miladyDlg .dlgbox { max-width: calc(100vw - 32px); }
+  }
 </style>
 </head>
 <body>
@@ -209,7 +234,7 @@
   <button data-act="milady">🤍 Milady #</button>
   <button data-act="mirror">🔄 Mirror</button>
   <button data-act="rezero">🎯 Fix Head</button>
-  <button data-act="bg" title="click: cycle background — right-click or drop a picture: set image">🖼 BG</button>
+  <button data-act="bg" title="click: cycle background — right-click, long-press, or drop a picture: set image">🖼 BG</button>
   <button data-act="record">⏺ Record</button>
   <button data-act="fx">✨ FX</button>
   <button data-act="settings" title="advanced settings">⚙</button>
@@ -376,8 +401,28 @@ if (BIG) {
     if (next === 'image' && !bgImage) { bgFile.click(); return; }
     setBg(next);
   });
-  // right-click = pick/change the background image at any time (drag & drop works too)
-  btnBg.addEventListener('contextmenu', e => { e.preventDefault(); bgFile.click(); });
+  // right-click = pick/change the background image at any time (drag & drop
+  // works too). Touch has neither, so a long-press (≥500ms, released without
+  // sliding) opens the picker instead; Android fires contextmenu on long-press
+  // already, so a flag keeps the two paths from opening it twice per gesture.
+  let bgPicked = false, bgHoldT = 0, bgHoldXY = null;
+  btnBg.addEventListener('contextmenu', e => { e.preventDefault(); bgPicked = true; bgFile.click(); });
+  btnBg.addEventListener('touchstart', e => {
+    bgPicked = false;
+    bgHoldT = performance.now();
+    bgHoldXY = [e.touches[0].clientX, e.touches[0].clientY];
+  }, { passive: true });
+  btnBg.addEventListener('touchmove', e => {
+    if (bgHoldXY && Math.hypot(e.touches[0].clientX - bgHoldXY[0],
+                               e.touches[0].clientY - bgHoldXY[1]) > 12) bgHoldXY = null;
+  }, { passive: true });
+  btnBg.addEventListener('touchend', e => {
+    if (bgHoldXY && performance.now() - bgHoldT >= 500) {
+      e.preventDefault(); // swallow the click that would cycle the background
+      if (!bgPicked) { bgPicked = true; bgFile.click(); }
+    }
+    bgHoldXY = null;
+  });
   sync();
   // hide button <-> peek dot
   const peek = document.getElementById('peek');
@@ -414,10 +459,15 @@ addEventListener('keydown', e => {
   }
 });
 
+// phones run two neural nets + 3D on a battery: detect once (touch + small
+// screen) and trade a little sharpness/pose latency for heat. Desktop keeps
+// full quality — OBS captures are unaffected.
+const MOBILE = matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 820;
+
 // ---------- three.js scene ----------
 const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
 renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); // 3x phone screens don't need 3x GPU load
+renderer.setPixelRatio(Math.min(devicePixelRatio, MOBILE ? 1.5 : 2)); // 3x phone screens don't need 3x GPU load
 renderer.setClearColor(0x000000, 0);
 document.body.appendChild(renderer.domElement);
 
@@ -688,19 +738,28 @@ function setZoom(z) {
   applyCamera();
 }
 addEventListener('wheel', e => setZoom(camZoom * Math.exp(-e.deltaY * 0.0012)), { passive: true });
-// touch: two-finger pinch zooms over the same range as the wheel
+// touch: two-finger pinch zooms over the same range as the wheel. Handlers
+// are non-passive and preventDefault (plus touch-action:none on the canvas),
+// otherwise the browser claims the gesture as page zoom and fights the camera
 let pinchD = 0;
 const touchDist = e => Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
                                   e.touches[0].clientY - e.touches[1].clientY);
-addEventListener('touchstart', e => { if (e.touches.length === 2) pinchD = touchDist(e); }, { passive: true });
+addEventListener('touchstart', e => {
+  if (e.touches.length === 2) { pinchD = touchDist(e); e.preventDefault(); }
+}, { passive: false });
 addEventListener('touchmove', e => {
   if (e.touches.length === 2 && pinchD > 0) {
+    e.preventDefault();
     const d = touchDist(e);
     setZoom(camZoom * d / pinchD);
     pinchD = d;
   }
-}, { passive: true });
-addEventListener('touchend', () => { pinchD = 0; });
+}, { passive: false });
+addEventListener('touchend', e => { if (e.touches.length < 2) pinchD = 0; });
+addEventListener('touchcancel', () => { pinchD = 0; });
+// iOS Safari also surfaces pinches as gesture* events — swallow those too
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend'])
+  addEventListener(ev, e => e.preventDefault());
 
 async function loadAvatar(url) {
   const gltf = await loader.loadAsync(url);
@@ -876,7 +935,8 @@ if (!DEMO) {
     }
     status('requesting camera…');
     video = document.getElementById('cam');
-    video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+    // facingMode:'user' — without it some Android phones open the rear camera
+    video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } });
     await video.play();
     setCam(poseLandmarker ? 'tracking (face + arms)' : 'tracking (face only)');
   } catch (e) {
@@ -1134,11 +1194,16 @@ async function toggleRecord() {
     try { audio = (await getMicStream()).getAudioTracks(); }
     catch (e) { console.warn('recording without mic:', e); }
   }
+  // webm first (Chrome/Firefox), mp4 fallback for iOS Safari (no webm there)
   const mimes = audio.length
-    ? ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
-    : ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+    ? ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm',
+       'video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4']
+    : ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm',
+       'video/mp4;codecs=avc1.42E01E', 'video/mp4'];
   const mime = mimes.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
   if (!mime) { status('recording not supported in this browser'); return; }
+  const recExt = mime.includes('mp4') ? 'mp4' : 'webm';
+  const recType = mime.split(';')[0];
   recCanvas = document.createElement('canvas');
   recCanvas.width = renderer.domElement.width || 2;
   recCanvas.height = renderer.domElement.height || 2;
@@ -1151,12 +1216,12 @@ async function toggleRecord() {
   recorder.ondataavailable = e => { if (e.data.size) recChunks.push(e.data); };
   recorder.onstop = () => {
     clearTimeout(recTimer);
-    const blob = new Blob(recChunks, { type: 'video/webm' });
+    const blob = new Blob(recChunks, { type: recType });
     recChunks = [];
     recorder = null;
     const d = new Date(), p = n => String(n).padStart(2, '0');
     const a = document.createElement('a');
-    a.download = `milady-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.webm`;
+    a.download = `milady-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.${recExt}`;
     a.href = URL.createObjectURL(blob);
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
@@ -1189,10 +1254,14 @@ function frame() {
   tick(clock.getDelta(), clock.elapsedTime, performance.now());
 }
 
+let poseFrameFlip = false;
 function tick(dt, t, now) {
 
   pollFace(now);
-  pollPose(now);
+  // phones: pose every other frame (face stays full-rate — mouth/blink sync
+  // is what people notice; arms at 30Hz are indistinguishable after smoothing)
+  poseFrameFlip = !poseFrameFlip;
+  if (!MOBILE || poseFrameFlip) pollPose(now);
 
   let targetBlink = 0, jaw = 0;
   if (DEMO) {
