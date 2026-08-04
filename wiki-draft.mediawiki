@@ -1,0 +1,25 @@
+'''Milady Tracker''' is a free, browser-based VTubing application that lets anyone appear as a [[Milady]] on stream or in recorded clips. A webcam drives the head, eyes, mouth, arms, and torso of a rigged 3D VRM avatar in real time, entirely client-side — no account, no install, and no dedicated VTubing software. The avatar can be the bundled AlienMilady model (by Sp00bs) or any [[Pockit]] Milady, selected by token number.
+
+== Features ==
+* '''Face tracking''' — head pose, blinking, and mouth movement from the webcam (jaw and rounded-vowel detection, with auto-calibration and an optional microphone-volume fallback).
+* '''Arm and torso tracking''' — shoulders, elbows, and wrists follow the streamer, and the torso twists and leans with the shoulder line; everything relaxes to an idle pose with breathing sway when out of frame.
+* '''Any Pockit Milady''' — enter a token number (1–1111), or pick one at random, and that Milady's VRM loads directly from the official per-token endpoint;<ref>https://pockit.world/milady — collection page with per-token VRM/GLB downloads.</ref> the choice persists. Pockit models ship without mouth blendshapes, so the tracker repaints the model's mouth texture at load to restore mouth movement.
+* '''Backgrounds''' — transparent, green screen, white, black, a built-in smiley, or any image (file picker or drag-and-drop; saved between sessions).
+* '''Recording''' — one-button capture of the avatar plus background to a downloadable .webm clip (up to two minutes), with microphone audio when permitted.
+* '''FX''' — toggleable sparkles, hearts, multicolor hue-cycle, CRT scanlines, and a fisheye lens, all lightweight.
+* The interface chrome is styled after [[Beetleboy]]'s console aesthetic.
+
+== Usage ==
+# Open the tracker page in a Chromium-based browser (or clone the repository and run the bundled zero-dependency server, then open <code>http://127.0.0.1:8787</code>).
+# Allow camera access when prompted; tracking begins immediately. Large streamer-friendly buttons are shown by default (press <code>H</code> to hide them); the <code>?panel=1</code> URL flag swaps in an advanced settings panel.
+# ''For OBS'': add the page as a '''Browser Source''' with a transparent background (launch OBS once with the <code>--enable-media-stream</code> flag so browser sources can reach the webcam), or use '''Window Capture''' of the tracker window with the green background and a chroma-key filter.
+
+== Technical details ==
+Milady Tracker is a single self-contained HTML page. Rendering uses three.js with @pixiv/three-vrm; tracking uses MediaPipe Tasks Vision (FaceLandmarker and PoseLandmarker), all loaded from public CDNs. Pockit VRMs (VRM 0.x, Mixamo-rigged) are fetched per token from the Pockit CDN, which serves them with open CORS headers, so avatar swapping incurs no hosting cost. The Pockit asset pipeline is published in the moviemaker repository under the Viral Public License.<ref>https://github.com/prnthh/moviemaker/tree/main/generation — Pockit 3D asset library and generation pipeline.</ref>
+
+== Source ==
+* Repository (code, default model, and issue tracker): https://github.com/wables411/milady-tracker ''(pending publish)''
+* Live hosted page: https://wables411.github.io/milady-tracker/tracker/ ''(pending publish)''
+
+== References ==
+<references />
