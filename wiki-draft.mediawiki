@@ -11,7 +11,7 @@
 
 == Usage ==
 # Open the tracker page in a Chromium-based browser (or clone the repository and run the bundled zero-dependency server, then open <code>http://127.0.0.1:8787</code>).
-# Allow camera access when prompted; tracking begins immediately. Large streamer-friendly buttons are shown by default (press <code>H</code> to hide them); the <code>?panel=1</code> URL flag swaps in an advanced settings panel.
+# Allow camera access when prompted; tracking begins immediately. Large streamer-friendly buttons are shown by default (press <code>H</code> to hide them); the ⚙ button opens an advanced settings panel.
 # ''For OBS'': add the page as a '''Browser Source''' with a transparent background (launch OBS once with the <code>--enable-media-stream</code> flag so browser sources can reach the webcam), or use '''Window Capture''' of the tracker window with the green background and a chroma-key filter.
 
 == Technical details ==

@@ -39,9 +39,9 @@ then Window Capture that window in OBS and add a **Chroma Key** filter.
 ## Controls
 
 🤍 Milady # · 🔄 Mirror · 🎯 Fix Head · 🖼 BG · ⏺ Record · ✨ FX ·
-☁️ Hide. Press **H** to hide/show the buttons; everything persists.
-`?panel=1` swaps in an advanced settings panel (axis flips, mic mouth,
-mirror and tracking toggles).
+⚙ · ☁️ Hide. Press **H** to hide/show the buttons; everything persists.
+**⚙** opens the advanced settings panel (axis flips, mic mouth, tracking
+toggles).
 
 - **Mouse wheel / pinch** — zoom between full body and face close-up.
 - **🎯 Fix Head** — re-zero your neutral head pose.

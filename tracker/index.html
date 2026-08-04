@@ -157,7 +157,7 @@
 </style>
 </head>
 <body>
-<div id="ui">
+<div id="ui" class="hidden">
   <div id="status">loading…</div>
   <label>milady # <input id="milady" type="text" inputmode="numeric" placeholder="1–1111" style="width:56px">
     <button id="loadMilady">load</button>
@@ -200,6 +200,7 @@
   <button data-act="bg" title="click: cycle background — right-click or drop a picture: set image">🖼 BG</button>
   <button data-act="record">⏺ Record</button>
   <button data-act="fx">✨ FX</button>
+  <button data-act="settings" title="advanced settings">⚙</button>
   <button data-act="hide">☁️ Hide</button>
 </div>
 <button id="peek" class="hidden" title="show buttons">♡</button>
@@ -308,7 +309,6 @@ document.getElementById('bgPick').addEventListener('click', () => bgFile.click()
 addEventListener('dragover', e => e.preventDefault());
 addEventListener('drop', e => { e.preventDefault(); setBgImage(e.dataTransfer.files?.[0]); });
 applyBg();
-if (params.get('ui') === '0') document.getElementById('ui').classList.add('hidden');
 
 // current Pockit token id ('' = default local avatar); assigned at load
 let miladyId = '';
@@ -316,6 +316,9 @@ let miladyId = '';
 // big friendly buttons are the default UI; ?panel=1 swaps in the advanced
 // settings panel instead, ?ui=0 hides every control (for OBS browser sources)
 const BIG = params.get('ui') !== '0' && params.get('panel') !== '1' && params.get('big') !== '0';
+// the panel ships hidden in the HTML (it used to flash on slow networks
+// while the module imports loaded); only ?panel=1 mode starts with it open
+if (!BIG && params.get('ui') !== '0') document.getElementById('ui').classList.remove('hidden');
 const bigbar = document.getElementById('bigbar');
 let bigbarToggle = () => {};
 if (BIG) {
@@ -333,6 +336,8 @@ if (BIG) {
   bigbar.querySelector('[data-act=rezero]').addEventListener('click', () =>
     document.getElementById('rezero').click());
   bigbar.querySelector('[data-act=milady]').addEventListener('click', () => openMiladyDlg());
+  bigbar.querySelector('[data-act=settings]').addEventListener('click', () =>
+    document.getElementById('ui').classList.toggle('hidden'));
   // FX button cycles presets: off → ✨ → 💕 → 🌈 → 📺 → 🐟 → everything → off
   const FX_PRESETS = [
     [], ['fxSparkle'], ['fxHeart'], ['fxRainbow'], ['fxScan'], ['fxFish'],
