@@ -2,7 +2,10 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- maximum-scale=1 also stops iOS auto-zooming when a small-font input is
+     focused — that zoom used to persist and push the fixed control bars off
+     the visible screen -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Milady Tracker</title>
 <link rel="icon" href="milady.ico">
 <link rel="manifest" href="manifest.webmanifest">
@@ -40,10 +43,15 @@
   }
   #ui, #bigbar, #peek, button, input, select {
     font-family: 'Silkscreen', 'Courier New', monospace;
+    touch-action: manipulation; /* no double-tap zoom on the controls */
   }
+  /* --vv*: set from the visualViewport API so fixed chrome hugs the VISIBLE
+     screen even when the URL bar, keyboard, or residual zoom shrinks it */
   #ui {
-    position: fixed; top: 10px; left: 10px; z-index: 10; width: 232px;
-    max-width: calc(100vw - 20px); max-height: calc(100vh - 20px);
+    position: fixed; z-index: 10; width: 232px;
+    top: calc(10px + var(--vvt, 0px)); left: calc(10px + var(--vvl, 0px));
+    max-width: calc(100vw - 20px);
+    max-height: calc(100vh - 20px); max-height: calc(100dvh - 20px);
     overflow-y: auto; box-sizing: border-box;
     padding: 36px 12px 10px;
     background: linear-gradient(180deg, var(--shell1), var(--shell2));
@@ -94,7 +102,7 @@
   button:active { box-shadow: inset 0 2px 4px rgba(0,0,0,.35); transform: translateY(1px); }
   #rezero { background: linear-gradient(180deg, var(--tan1), var(--tan2)); color: var(--tan-ink); }
   #bigbar {
-    position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+    position: fixed; bottom: calc(14px + var(--vvb, 0px)); left: 50%; transform: translateX(-50%);
     display: flex; flex-wrap: wrap; justify-content: center;
     width: max-content; /* left:50% halves shrink-to-fit width — size to content instead */
     max-width: calc(100vw - 16px); box-sizing: border-box;
@@ -125,7 +133,8 @@
   #bigbar.faded { opacity: 0; pointer-events: none; }
   /* peek: an outline heart, fully invisible until the mouse finds it */
   #peek {
-    position: fixed; bottom: 10px; right: 10px; z-index: 20;
+    position: fixed; z-index: 20;
+    bottom: calc(10px + var(--vvb, 0px)); right: calc(10px + var(--vvr, 0px));
     width: 46px; height: 46px; border-radius: 50%;
     font-size: 28px; padding: 0; line-height: 1;
     background: transparent; border: none; box-shadow: none;
@@ -180,7 +189,7 @@
 
   /* small screens: tighter big buttons (they wrap into rows as needed) */
   @media (max-width: 760px) {
-    #bigbar { gap: 5px; padding: 7px; bottom: 8px; }
+    #bigbar { gap: 5px; padding: 7px; bottom: calc(8px + var(--vvb, 0px) + env(safe-area-inset-bottom, 0px)); }
     #bigbar button { min-width: 0; flex: 1 0 auto; font-size: 9px; padding: 9px 6px; }
     #miladyDlg .dlgbox { max-width: calc(100vw - 32px); }
   }
@@ -189,13 +198,15 @@
      and shift the settings panel to the right so they don't overlap */
   @media (orientation: landscape) and (max-height: 500px) {
     #bigbar {
-      left: 8px; top: 50%; bottom: auto; transform: translateY(-50%);
+      left: calc(8px + var(--vvl, 0px) + env(safe-area-inset-left, 0px));
+      top: 50%; bottom: auto; transform: translateY(-50%);
       flex-direction: column; flex-wrap: nowrap; justify-content: flex-start;
-      width: auto; max-width: none; max-height: calc(100vh - 16px);
+      width: auto; max-width: none;
+      max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px);
       overflow-y: auto; gap: 5px; padding: 7px;
     }
     #bigbar button { min-width: 0; flex: 0 0 auto; font-size: 9px; padding: 8px 7px; }
-    #ui { left: auto; right: 10px; }
+    #ui { left: auto; right: calc(10px + var(--vvr, 0px)); }
     #miladyDlg .dlgbox { max-width: calc(100vw - 32px); }
   }
 </style>
@@ -452,6 +463,23 @@ if (BIG) {
   addEventListener('pointermove', wake);
   addEventListener('pointerdown', wake); // touch screens have no mousemove
   wake();
+}
+// keep the fixed chrome inside the VISIBLE screen: URL-bar collapse, the
+// on-screen keyboard, and any residual page zoom all shrink/offset the visual
+// viewport while position:fixed stays glued to the layout viewport. The CSS
+// position rules add these --vv* insets (0 on desktop / when nothing shifted).
+if (window.visualViewport && !UI0) {
+  const vv = window.visualViewport;
+  const pin = () => {
+    const r = document.documentElement.style;
+    r.setProperty('--vvt', Math.max(0, vv.offsetTop) + 'px');
+    r.setProperty('--vvl', Math.max(0, vv.offsetLeft) + 'px');
+    r.setProperty('--vvb', Math.max(0, innerHeight - vv.height - vv.offsetTop) + 'px');
+    r.setProperty('--vvr', Math.max(0, innerWidth - vv.width - vv.offsetLeft) + 'px');
+  };
+  vv.addEventListener('resize', pin);
+  vv.addEventListener('scroll', pin);
+  pin();
 }
 const uiPanel = document.getElementById('ui');
 // ✕ returns to the bottom buttons (also un-hides them for ?panel=1 users)
@@ -714,6 +742,55 @@ function setupCanvasMouth() {
   mouthTex = { mats, frames, cur: src };
 }
 
+// A few % of Pockit accessories (hats — e.g. #104/#516/#1058) ship skinned
+// 100% to the HIPS bone while sitting at head height: an asset bug that
+// leaves the hat floating in place when the head turns. Detect (head-level
+// bbox + zero head-bone weight) and rebind every vertex to the head joint —
+// at load the scene is still in bind pose, so the swap is visually lossless
+// and the hat simply starts following the head like the properly-built ones.
+function fixStuckAccessories() {
+  const headRaw = vrm.humanoid.getRawBoneNode('head');
+  if (!headRaw) return;
+  vrm.scene.updateMatrixWorld(true);
+  const skinned = [];
+  vrm.scene.traverse(o => { if (o.isSkinnedMesh) skinned.push(o); });
+  let bodyTop = 0;
+  for (const o of skinned) {
+    o.geometry.computeBoundingBox();
+    bodyTop = Math.max(bodyTop, o.geometry.boundingBox.max.y);
+  }
+  for (const o of skinned) {
+    if (o.geometry.boundingBox.min.y < bodyTop * 0.7) continue; // not head-level
+    const idx = o.geometry.getAttribute('skinIndex');
+    const wt = o.geometry.getAttribute('skinWeight');
+    if (!idx || !wt) continue;
+    const headSet = new Set(); // this skin's joints that are head or inside it
+    o.skeleton.bones.forEach((b, i) => {
+      for (let p = b; p; p = p.parent) if (p === headRaw) { headSet.add(i); break; }
+    });
+    let usesHead = false;
+    for (let v = 0; v < idx.count && !usesHead; v++)
+      for (let c = 0; c < 4; c++)
+        if (wt.getComponent(v, c) > 0.01 && headSet.has(idx.getComponent(v, c))) { usesHead = true; break; }
+    if (usesHead) continue;
+    let hi = o.skeleton.bones.indexOf(headRaw);
+    if (hi < 0) { // head isn't among this skin's joints — extend a copy
+      hi = o.skeleton.bones.length;
+      o.bind(new THREE.Skeleton(
+        [...o.skeleton.bones, headRaw],
+        [...o.skeleton.boneInverses, headRaw.matrixWorld.clone().invert()],
+      ), o.bindMatrix);
+    }
+    for (let v = 0; v < idx.count; v++) {
+      idx.setXYZW(v, hi, 0, 0, 0);
+      wt.setXYZW(v, 1, 0, 0, 0);
+    }
+    idx.needsUpdate = true;
+    wt.needsUpdate = true;
+    console.log('rebound stuck accessory to head bone:', o.name || o.uuid);
+  }
+}
+
 // camera: auto-framed on the face whatever the avatar's height, with mouse
 // wheel zoom from full body (zoomed out) to face close-up (zoomed in)
 let camH = 1.15, camS = 1;
@@ -798,6 +875,7 @@ async function loadAvatar(url) {
   const groups = gltf.parser.json.extensions?.VRM?.blendShapeMaster?.blendShapeGroups || [];
   const aGroup = groups.find(g => g.presetName === 'a');
   if (!aGroup || !(aGroup.binds || []).length) setupCanvasMouth();
+  fixStuckAccessories(); // must run while still in bind pose, before setupArms poses the rig
   setupArms();
   frameCamera();
 }
