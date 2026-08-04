@@ -19,7 +19,7 @@ Milady Tracker is a single self-contained HTML page. Rendering uses three.js wit
 
 == Source ==
 * Repository (code, default model, and issue tracker): https://github.com/wables411/milady-tracker
-* Live hosted page: https://wables411.github.io/milady-tracker/tracker/
+* Live hosted page: https://miladyvrm.lawb.xyz
 
 == References ==
 <references />

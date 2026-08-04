@@ -5,10 +5,9 @@ face, arm, and torso tracking.
 
 ## Quick start
 
-**No install:** open
-`https://wables411.github.io/milady-tracker/tracker/` and **Allow**
-the camera. (HTTPS, so it works on phones too. The mic is not needed —
-the camera tracks your jaw.)
+**No install:** open **https://miladyvrm.lawb.xyz** and **Allow** the
+camera. (HTTPS, so it works on phones too. The mic is not needed — the
+camera tracks your jaw.)
 
 **Run it locally:**
 
