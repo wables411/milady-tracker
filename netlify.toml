@@ -1,0 +1,5 @@
+# Netlify serves this repo as-is (no build) — vrmilady.net, the primary
+# domain. GitHub Pages serves the same content at miladyvrm.lawb.xyz as the
+# mirror; both deploy from every push to main.
+[build]
+  publish = "."
