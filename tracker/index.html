@@ -1041,6 +1041,18 @@ const qTorsoTmp = new THREE.Quaternion(), qCompTmp = new THREE.Quaternion(), eTo
 const mat = new THREE.Matrix4();
 let trackBlink = 0, trackJaw = 0, trackFunnel = 0;
 
+// leaning: the face matrix's translation (camera space, ~cm) is the head's
+// actual position — deltas from the re-zeroable neutral drive whole-body
+// sway plus a forward-lean torso pitch for when the hips aren't in frame
+// (the usual desk framing), so the body moves with you instead of sitting
+// bolted in place. 🎯 Fix Head re-zeros position and rotation together.
+const neutralPos = new THREE.Vector3(), facePosTmp = new THREE.Vector3();
+const leanTgt = { x: 0, y: 0, z: 0 }; // visual-space meters
+const leanCur = { x: 0, y: 0, z: 0 };
+let leanPitch = 0;
+const LEAN_GAIN = { x: 0.9, y: 0.5, z: 0.7, pitch: 2.0 };
+const LEAN_MAX = { x: 0.25, y: 0.10, z: 0.30 };
+
 if (!DEMO) {
   try {
     status('loading tracker…');
@@ -1096,7 +1108,14 @@ function pollFace(now) {
     faceSeen = true; lastFaceT = now;
     mat.fromArray(res.facialTransformationMatrixes[0].data);
     qRaw.setFromRotationMatrix(mat);
-    if (!neutralSet) { neutral.copy(qRaw); neutralSet = true; }
+    facePosTmp.setFromMatrixPosition(mat); // +x image-right, +y up, z rises toward 0 as you lean in
+    if (!neutralSet) { neutral.copy(qRaw); neutralPos.copy(facePosTmp); neutralSet = true; }
+    const ds = ui.mirror.checked ? -1 : 1; // same side convention as the arms
+    leanTgt.x = clampA(ds * (facePosTmp.x - neutralPos.x) / 100 * LEAN_GAIN.x, LEAN_MAX.x);
+    leanTgt.y = clampA((facePosTmp.y - neutralPos.y) / 100 * LEAN_GAIN.y, LEAN_MAX.y);
+    const closer = (facePosTmp.z - neutralPos.z) / 100; // meters leaned toward the camera
+    leanTgt.z = clampA(closer * LEAN_GAIN.z, LEAN_MAX.z);
+    leanPitch = clampA(closer * LEAN_GAIN.pitch, TORSO_MAX.pitch);
     qRel.copy(neutral).invert().multiply(qRaw);
     // decompose to euler for per-axis flips
     const e = new THREE.Euler().setFromQuaternion(qRel, 'YXZ');
@@ -1236,7 +1255,9 @@ function pollPose(now) {
         tSC.copy(tSL).add(tSR).multiplyScalar(0.5).sub(tHC); // hips → shoulders
         if (tSC.y > 1e-3) torsoTgt.pitch = clampA(Math.atan2(tSC.z, tSC.y) * TORSO_GAIN.pitch, TORSO_MAX.pitch);
       } else {
-        torsoTgt.pitch *= 0.98; // hips out of frame: ease the forward lean out
+        // hips out of frame (desk framing): forward lean comes from the face
+        // distance instead of the hips→shoulders vector
+        torsoTgt.pitch = faceSeen ? leanPitch : torsoTgt.pitch * 0.98;
       }
     } else if (torsoTracked && now - torsoSeenT < ARM_HOLD_MS) {
       // brief dropout: hold the last pose instead of snapping upright
@@ -1416,6 +1437,10 @@ function tick(dt, t, now) {
       torsoTgt.roll = Math.sin(t * 0.8) * 0.12;
       torsoTgt.pitch = Math.sin(t * 0.35) * 0.15;
     }
+    // gentle whole-body drift to exercise the lean path
+    leanTgt.x = Math.sin(t * 0.5) * 0.10;
+    leanTgt.y = Math.sin(t * 1.7) * 0.015;
+    leanTgt.z = Math.sin(t * 0.33) * 0.12;
   } else if (faceSeen) {
     // generous threshold: partial blink scores still count as a blink
     targetBlink = clamp01((trackBlink - 0.25) * 3.0);
@@ -1476,7 +1501,10 @@ function tick(dt, t, now) {
     const k = 1 - Math.exp(-dt * 8);
     torsoCur.yaw += ((tracked ? torsoTgt.yaw : 0) - torsoCur.yaw) * k;
     torsoCur.roll += ((tracked ? torsoTgt.roll : 0) - torsoCur.roll) * k;
-    torsoCur.pitch += ((tracked ? torsoTgt.pitch : 0) - torsoCur.pitch) * k;
+    // no pose tracking (arms off / pose model missing): the face-lean pitch
+    // still keeps forward/back leaning alive
+    const pitchTgt = tracked ? torsoTgt.pitch : (faceSeen ? leanPitch : 0);
+    torsoCur.pitch += (pitchTgt - torsoCur.pitch) * k;
     torsoRig.x = -torsoCur.pitch; torsoRig.y = torsoCur.yaw; torsoRig.z = -torsoCur.roll;
     for (const [bone, w] of torsoBones) {
       bone.rotation.set(torsoRig.x * w, torsoRig.y * w, torsoRig.z * w, 'YXZ');
@@ -1514,6 +1542,25 @@ function tick(dt, t, now) {
       a.lower.quaternion.slerp(qArmTmp.setFromEuler(eArmTmp.set(0, 0, 0.25 * a.sign)), k);
       if (a.hand) a.hand.quaternion.slerp(qArmTmp.setFromEuler(eArmTmp.set(0, 0, 0.10 * a.sign)), k);
     }
+  }
+
+  // whole-body sway from the head's tracked position. The applied offset is
+  // hard-capped to a fraction of the VISIBLE frame at the camera's current
+  // distance/aspect — whatever the zoom, the avatar can never drift off
+  // screen; it just leans against the edge of its allowance.
+  {
+    const on = DEMO || faceSeen;
+    const kl = 1 - Math.exp(-dt * 6);
+    leanCur.x += ((on ? leanTgt.x : 0) - leanCur.x) * kl;
+    leanCur.y += ((on ? leanTgt.y : 0) - leanCur.y) * kl;
+    leanCur.z += ((on ? leanTgt.z : 0) - leanCur.z) * kl;
+    const dist = Math.max(0.2, camera.position.z);
+    const halfH = Math.tan(THREE.MathUtils.degToRad(15)) * dist; // fov is 30
+    const halfW = halfH * Math.max(0.3, camera.aspect || 1);
+    vrm.scene.position.set(
+      clampA(leanCur.x * camS, Math.min(LEAN_MAX.x * camS, 0.25 * halfW)),
+      clampA(leanCur.y * camS, Math.min(LEAN_MAX.y * camS, 0.18 * halfH)),
+      clampA(leanCur.z * camS, Math.min(LEAN_MAX.z * camS, 0.25 * dist)));
   }
 
   updateParticles(fxSparkles, dt, t);
