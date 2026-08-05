@@ -7,7 +7,8 @@ face, arm, and torso tracking.
 
 **No install:** open **https://miladyvrm.lawb.xyz** and **Allow** the
 camera. (HTTPS, so it works on phones too. The mic is not needed — the
-camera tracks your jaw.)
+camera tracks your jaw.) On a phone, **Add to Home Screen** installs it
+as a full-screen app.
 
 **Run it locally:**
 
@@ -45,9 +46,11 @@ toggles).
 - **Mouse wheel / pinch** — zoom between full body and face close-up.
 - **🎯 Fix Head** — re-zero your neutral head pose.
 - **🖼 BG** — green → white → black → cult → image → transparent
-  (drag & drop any picture to use it as the background).
-- **⏺ Record** — capture avatar + background to a `.webm` download
-  (2 min max; first click asks for the mic so clips have voice).
+  (drag & drop any picture — or right-click / long-press 🖼 BG — to use
+  it as the background).
+- **⏺ Record** — capture avatar + background to a video download
+  (`.webm`, or `.mp4` on iPhone; 2 min max; first click asks for the mic
+  so clips have voice).
 - **✨ FX** — ✨ sparkles · 💕 hearts · 🌈 multicolor · 📺 crt · 🐟 fisheye.
 - `?demo=1` self-test (no camera) · `?mouthsens=1.3` mouth sensitivity.
 
