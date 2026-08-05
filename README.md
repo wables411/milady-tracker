@@ -50,7 +50,8 @@ toggles).
   it as the background).
 - **⏺ Record** — capture avatar + background to a video download
   (`.webm`, or `.mp4` on iPhone; 2 min max; first click asks for the mic
-  so clips have voice).
+  so clips have voice). The ⚙ panel's **voice fx** (deep / robot / cute)
+  changes your voice in recordings.
 - **✨ FX** — ✨ sparkles · 💕 hearts · 🌈 multicolor · 📺 crt · 🐟 fisheye.
 - `?demo=1` self-test (no camera) · `?mouthsens=1.3` mouth sensitivity.
 

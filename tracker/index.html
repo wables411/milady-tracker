@@ -228,6 +228,14 @@
   <label><input type="checkbox" id="arms" checked> arm tracking</label>
   <label><input type="checkbox" id="camMouth" checked> camera mouth</label>
   <label><input type="checkbox" id="micMouth"> mic mouth</label>
+  <label title="changes your voice in ⏺ recordings">voice fx:
+    <select id="voice">
+      <option value="off">off</option>
+      <option value="deep">deep</option>
+      <option value="robot">robot</option>
+      <option value="cute">cute</option>
+    </select>
+  </label>
   <label><input type="checkbox" id="flipPitch"> flip pitch</label>
   <label><input type="checkbox" id="flipYaw"> flip yaw</label>
   <label><input type="checkbox" id="flipRoll"> flip roll</label>
@@ -1304,6 +1312,95 @@ function micLevel() {
   return Math.min(1, rms / micPeak);
 }
 
+// ---------- voice fx (lite) ----------
+// off / deep / robot / cute — changes the voice in ⏺ recordings. Deep/cute
+// pitch-shift through a tiny granular AudioWorklet (two crossfading read
+// heads on a delay line); robot is a ring modulator; cute adds a 6Hz warble.
+// The mouth tracker keeps the raw mic. Casual disguise, not privacy-grade —
+// a real voice privacy tool is a later project.
+const voiceSel = document.getElementById('voice');
+voiceSel.value = localStorage.getItem('trk_voice') || 'off';
+if (![...voiceSel.options].some(o => o.value === voiceSel.value)) voiceSel.value = 'off';
+voiceSel.addEventListener('change', () => localStorage.setItem('trk_voice', voiceSel.value));
+
+const PITCH_WORKLET = "registerProcessor('pitchshift', class extends AudioWorkletProcessor {" +
+  "static get parameterDescriptors() { return [{ name: 'ratio', defaultValue: 1, minValue: 0.5, maxValue: 2 }]; }" +
+  "constructor() { super(); this.N = 16384; this.buf = new Float32Array(this.N); this.w = 0; this.phase = 0; this.G = 3200; }" +
+  "process(inputs, outputs, params) {" +
+  "  const inp = inputs[0], out = outputs[0];" +
+  "  if (!inp.length || !out.length) return true;" +
+  "  const x = inp[0], ratio = params.ratio[0], N = this.N, G = this.G;" +
+  "  for (let i = 0; i < x.length; i++) {" +
+  "    this.buf[this.w] = x[i];" +
+  "    this.phase = (((this.phase + 1 - ratio) % G) + G) % G;" + // read-head drift: delay shrinks for pitch-up, grows for pitch-down
+  "    const p1 = this.phase, p2 = (p1 + G / 2) % G;" +
+  "    const f1 = 1 - Math.abs(p1 / G * 2 - 1);" + // triangle crossfade masks the delay-line wraps
+  "    const s = this.buf[(this.w - 1 - Math.floor(p1) + N) % N] * f1" +
+  "            + this.buf[(this.w - 1 - Math.floor(p2) + N) % N] * (1 - f1);" +
+  "    for (const ch of out) if (ch) ch[i] = s;" +
+  "    this.w = (this.w + 1) % N;" +
+  "  }" +
+  "  return true;" +
+  "}});";
+const VOICE_RATIO = { deep: 0.78, cute: 1.32 };
+let vfxCtx = null, vfxLive = null;
+
+function cleanupVoice() {
+  if (!vfxLive) return;
+  for (const o of vfxLive.oscs) { try { o.stop(); } catch {} }
+  for (const n of vfxLive.nodes) { try { n.disconnect(); } catch {} }
+  vfxLive = null;
+  vfxCtx?.suspend();
+}
+
+// raw mic stream in → audio tracks for the recorder (processed, or raw when
+// the effect is off or WebAudio fails — never block the recording itself)
+async function voiceTracks(rawStream) {
+  const mode = voiceSel.value;
+  if (mode === 'off' || !rawStream.getAudioTracks().length) return rawStream.getAudioTracks();
+  try {
+    if (!vfxCtx) {
+      vfxCtx = new AudioContext();
+      await vfxCtx.audioWorklet.addModule(
+        URL.createObjectURL(new Blob([PITCH_WORKLET], { type: 'text/javascript' })));
+    }
+    cleanupVoice();
+    vfxCtx.resume();
+    const nodes = [], oscs = [];
+    let node = vfxCtx.createMediaStreamSource(rawStream);
+    nodes.push(node);
+    if (VOICE_RATIO[mode]) {
+      const ps = new AudioWorkletNode(vfxCtx, 'pitchshift');
+      ps.parameters.get('ratio').value = VOICE_RATIO[mode];
+      node.connect(ps); nodes.push(ps); node = ps;
+    }
+    if (mode === 'robot') {
+      // ring mod: out = in × (0.25 + 0.75·sin 42Hz) — dry floor keeps it intelligible
+      const ring = vfxCtx.createGain(); ring.gain.value = 0.25;
+      const osc = vfxCtx.createOscillator(); osc.frequency.value = 42;
+      const depth = vfxCtx.createGain(); depth.gain.value = 0.75;
+      osc.connect(depth).connect(ring.gain); osc.start();
+      node.connect(ring); nodes.push(ring, depth); oscs.push(osc); node = ring;
+    }
+    if (mode === 'cute') {
+      // gentle 6Hz tremolo on top of the pitch-up
+      const trem = vfxCtx.createGain(); trem.gain.value = 0.85;
+      const lfo = vfxCtx.createOscillator(); lfo.frequency.value = 6;
+      const depth = vfxCtx.createGain(); depth.gain.value = 0.15;
+      lfo.connect(depth).connect(trem.gain); lfo.start();
+      node.connect(trem); nodes.push(trem, depth); oscs.push(lfo); node = trem;
+    }
+    const dest = vfxCtx.createMediaStreamDestination();
+    node.connect(dest); nodes.push(dest);
+    vfxLive = { nodes, oscs };
+    return dest.stream.getAudioTracks();
+  } catch (e) {
+    console.warn('voice fx unavailable, recording the raw mic:', e);
+    return rawStream.getAudioTracks();
+  }
+}
+window.__vfx = voiceTracks; // debug: feed a synthetic stream through the chain
+
 // ---------- recording (avatar + background → .webm download) ----------
 // Composites the WebGL canvas over the current background on a 2D canvas and
 // records that with MediaRecorder. Only costs anything while recording.
@@ -1349,7 +1446,7 @@ async function toggleRecord() {
   // having no mic) just records silent video.
   let audio = [];
   if (!DEMO) {
-    try { audio = (await getMicStream()).getAudioTracks(); }
+    try { audio = await voiceTracks(await getMicStream()); }
     catch (e) { console.warn('recording without mic:', e); }
   }
   // webm first (Chrome/Firefox), mp4 fallback for iOS Safari (no webm there)
@@ -1374,6 +1471,7 @@ async function toggleRecord() {
   recorder.ondataavailable = e => { if (e.data.size) recChunks.push(e.data); };
   recorder.onstop = () => {
     clearTimeout(recTimer);
+    cleanupVoice();
     const blob = new Blob(recChunks, { type: recType });
     recChunks = [];
     recorder = null;
@@ -1388,7 +1486,9 @@ async function toggleRecord() {
   };
   recorder.start(250);
   recTimer = setTimeout(() => recorder?.stop(), REC_MAX_MS);
-  status(audio.length ? 'recording (mic on)… 2 min max' : 'recording (no mic)… 2 min max');
+  status(audio.length
+    ? `recording (mic on${voiceSel.value !== 'off' ? ', ' + voiceSel.value + ' voice' : ''})… 2 min max`
+    : 'recording (no mic)… 2 min max');
   updateRecUi();
 }
 document.getElementById('recordBtn').addEventListener('click', toggleRecord);
