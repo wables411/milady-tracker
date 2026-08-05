@@ -839,6 +839,27 @@ function fixStuckAccessories() {
   }
 }
 
+// A second Pockit asset bug (e.g. #518's halo): a hat-slot accessory baked
+// ~0.5m too low, so it circles the neck. Correctly-built tokens all put the
+// "Hatmodel" mesh in a band just above the head joint (+0.07..+0.39 local,
+// measured across the collection). Headwear lying ENTIRELY below the joint is
+// always misplaced — lift its center into that band. Hair and glasses straddle
+// the joint, so this rule can't touch them.
+function fixMisplacedHats() {
+  const headRaw = vrm.humanoid.getRawBoneNode('head');
+  if (!headRaw) return;
+  vrm.scene.updateMatrixWorld(true);
+  const headPos = new THREE.Vector3();
+  headRaw.getWorldPosition(headPos);
+  vrm.scene.traverse(o => {
+    if (o.name !== 'Hatmodel') return;
+    const box = new THREE.Box3().setFromObject(o);
+    if (box.isEmpty() || box.max.y >= headPos.y) return; // straddles/above the joint: placed fine
+    o.position.y += headPos.y + 0.22 - (box.min.y + box.max.y) / 2;
+    console.log('lifted misplaced hat accessory into the hat band');
+  });
+}
+
 // camera: auto-framed on the face whatever the avatar's height, with mouse
 // wheel zoom from full body (zoomed out) to face close-up (zoomed in)
 let camH = 1.15, camS = 1;
@@ -924,6 +945,7 @@ async function loadAvatar(url) {
   const aGroup = groups.find(g => g.presetName === 'a');
   if (!aGroup || !(aGroup.binds || []).length) setupCanvasMouth();
   fixStuckAccessories(); // must run while still in bind pose, before setupArms poses the rig
+  fixMisplacedHats();
   setupArms();
   frameCamera();
 }
