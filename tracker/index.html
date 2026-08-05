@@ -1335,6 +1335,10 @@ async function ensureMic() {
   } catch (e) {
     console.warn('mic unavailable:', e);
     ui.micMouth.checked = false;
+    // surface WHY, instead of silently unchecking the box
+    status(e.name === 'NotAllowedError'
+      ? 'mic blocked — click the padlock by the address bar and allow the microphone'
+      : 'no microphone found (' + (e.name || e.message || e) + ')');
   }
 }
 if (ui.micMouth.checked) ensureMic();
@@ -1482,9 +1486,13 @@ async function toggleRecord() {
   // triggers the permission prompt if it wasn't granted yet. Declining (or
   // having no mic) just records silent video.
   let audio = [];
+  let micHint = '';
   if (!DEMO) {
     try { audio = await voiceTracks(await getMicStream()); }
-    catch (e) { console.warn('recording without mic:', e); }
+    catch (e) {
+      console.warn('recording without mic:', e);
+      if (e.name === 'NotAllowedError') micHint = ' — mic blocked; allow it via the padlock by the address bar';
+    }
   }
   // webm first (Chrome/Firefox), mp4 fallback for iOS Safari (no webm there)
   const mimes = audio.length
@@ -1525,7 +1533,7 @@ async function toggleRecord() {
   recTimer = setTimeout(() => recorder?.stop(), REC_MAX_MS);
   status(audio.length
     ? `recording (mic on${voiceSel.value !== 'off' ? ', ' + voiceSel.value + ' voice' : ''})… 2 min max`
-    : 'recording (no mic)… 2 min max');
+    : `recording (no mic${micHint})… 2 min max`);
   updateRecUi();
 }
 document.getElementById('recordBtn').addEventListener('click', toggleRecord);
