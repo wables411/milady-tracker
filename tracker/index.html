@@ -241,7 +241,6 @@
       <option value="white">white</option>
       <option value="black">black</option>
       <option value="smiley">cult</option>
-      <option value="booru">remibooru</option>
       <option value="image">image</option>
     </select>
   </label>
@@ -324,34 +323,13 @@ const SMILEY_BG = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAkGBw
 const smileyImg = new Image();
 smileyImg.src = SMILEY_BG;
 
-// remibooru background: a random milady picture from remibooru.com's public
-// API (which sends CORS *). The media files themselves ship NO CORS headers,
-// so the picture can be shown (CSS hotlink) but never drawn into a canvas —
-// recordings fall back to transparent while this background is active.
-let booruUrl = null;
-async function pickBooru() {
-  status('fetching remibooru…');
-  try {
-    const r = await fetch('https://remibooru.com/api/public/posts?tags=milady&limit=100');
-    const posts = (await r.json()).posts.filter(p => p.contentType?.startsWith('image/'));
-    if (!posts.length) throw new Error('no image posts');
-    booruUrl = 'https://remibooru.com' + posts[Math.floor(Math.random() * posts.length)].imageUrl;
-    applyBg();
-    status(camStatus);
-  } catch (e) {
-    console.warn('remibooru fetch failed:', e);
-    status('remibooru unavailable');
-  }
-}
-
 function applyBg() {
   const v = bgSel.value;
   document.body.className =
-    (v === 'image' || v === 'smiley' || v === 'booru') ? 'bgimg' :
+    (v === 'image' || v === 'smiley') ? 'bgimg' :
     v === 'transparent' ? (UI0 ? '' : 'checker') : v;
   document.body.style.backgroundImage =
     v === 'smiley' ? `url(${SMILEY_BG})` :
-    (v === 'booru' && booruUrl) ? `url(${booruUrl})` :
     (v === 'image' && bgImage) ? `url(${bgImage})` : '';
 }
 function setBg(v) {
@@ -362,7 +340,6 @@ function setBg(v) {
 bgSel.addEventListener('change', () => {
   if (bgSel.value === 'image' && !bgImage) { bgFile.click(); return; } // applied once a file is picked
   setBg(bgSel.value);
-  if (bgSel.value === 'booru') pickBooru(); // fresh random picture every time
 });
 
 // image intake: file picker, or just drag & drop a picture onto the window.
@@ -391,7 +368,6 @@ document.getElementById('bgPick').addEventListener('click', () => bgFile.click()
 addEventListener('dragover', e => e.preventDefault());
 addEventListener('drop', e => { e.preventDefault(); setBgImage(e.dataTransfer.files?.[0]); });
 applyBg();
-if (bgSel.value === 'booru') pickBooru(); // persisted/URL choice: roll one now
 
 // current Pockit token id ('' = default local avatar); assigned at load
 let miladyId = '';
@@ -438,13 +414,12 @@ if (BIG) {
   });
   // Background cycles green → white → black → image → transparent; landing
   // on "image" with nothing uploaded opens the file picker instead
-  const BG_CYCLE = ['green', 'white', 'black', 'smiley', 'booru', 'image', 'transparent'];
+  const BG_CYCLE = ['green', 'white', 'black', 'smiley', 'image', 'transparent'];
   const btnBg = bigbar.querySelector('[data-act=bg]');
   btnBg.addEventListener('click', () => {
     const next = BG_CYCLE[(BG_CYCLE.indexOf(bgSel.value) + 1) % BG_CYCLE.length];
     if (next === 'image' && !bgImage) { bgFile.click(); return; }
     setBg(next);
-    if (next === 'booru') pickBooru(); // every lap lands on a new picture
   });
   // right-click = pick/change the background image at any time (drag & drop
   // works too). Touch has neither, so a long-press (≥500ms, released without
@@ -1285,8 +1260,6 @@ function recDraw() {
   }
   const cw = recCanvas.width, ch = recCanvas.height;
   recCtx.clearRect(0, 0, cw, ch);
-  // booru bg is absent on purpose: remibooru media has no CORS headers, so
-  // drawing it here would taint the canvas and kill captureStream entirely
   const bgi = bgSel.value === 'smiley' ? smileyImg : (bgSel.value === 'image' ? recBgImg : null);
   if (bgi?.complete && bgi.naturalWidth) {
     const k = Math.max(cw / bgi.naturalWidth, ch / bgi.naturalHeight); // cover
