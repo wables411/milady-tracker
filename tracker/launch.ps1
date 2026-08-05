@@ -10,13 +10,19 @@ if (-not $listening) {
 }
 
 # open the avatar in its own app window (big-button mode, green screen on).
-# Permissions live per-browser — use the browser the user actually uses:
-# Brave, then Chrome, then Edge, then whatever handles the URL.
+# The window gets its OWN browser profile with media prompts auto-granted:
+# --use-fake-ui-for-media-stream skips the permission prompt but uses the
+# REAL camera and mic. The dedicated profile matters twice over — it keeps
+# the grant away from normal browsing, and it forces a fresh browser process
+# (windows joining an already-running browser ignore launch flags entirely).
 $url = "http://127.0.0.1:8787/?bg=green"
+$prof = Join-Path $env:LOCALAPPDATA 'MiladyTracker\profile'
+$flags = @("--app=$url", "--user-data-dir=$prof", "--use-fake-ui-for-media-stream",
+           "--no-first-run", "--no-default-browser-check", "--hide-crash-restore-bubble")
 $brave = "$env:ProgramFiles\BraveSoftware\Brave-Browser\Application\brave.exe"
 if (Test-Path $brave) {
-    Start-Process $brave -ArgumentList "--app=$url"
+    Start-Process $brave -ArgumentList $flags
 } else {
-    try { Start-Process chrome -ArgumentList "--app=$url" }
-    catch { try { Start-Process msedge -ArgumentList "--app=$url" } catch { Start-Process $url } }
+    try { Start-Process chrome -ArgumentList $flags }
+    catch { try { Start-Process msedge -ArgumentList $flags } catch { Start-Process $url } }
 }
