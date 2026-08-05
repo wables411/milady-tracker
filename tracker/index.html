@@ -1177,7 +1177,7 @@ const pTmp = new THREE.Vector3();
 // jitter dies, light when moving fast so waves stay snappy), visibility
 // hysteresis + a short hold so arms don't flap between tracked and idle,
 // and duplicate webcam frames are skipped instead of re-solved.
-const ARM_VIS_ON = 0.55, ARM_VIS_OFF = 0.35, ARM_HOLD_MS = 400;
+const ARM_VIS_ON = 0.55, ARM_VIS_OFF = 0.35, ARM_HOLD_MS = 600;
 const armSmooth = {
   left: { S: new THREE.Vector3(), E: new THREE.Vector3(), W: new THREE.Vector3(), has: false, seenT: 0 },
   right: { S: new THREE.Vector3(), E: new THREE.Vector3(), W: new THREE.Vector3(), has: false, seenT: 0 },
@@ -1200,8 +1200,12 @@ const tS = new THREE.Vector3(), tSC = new THREE.Vector3(), tHC = new THREE.Vecto
 const clampA = (v, m) => Math.min(m, Math.max(-m, v));
 
 function smoothPt(cur, target, dtp) {
-  const speed = pTmp.copy(target).sub(cur).length() / Math.max(dtp, 1e-3); // m/s
-  const rate = 6 + Math.min(30, speed * 40);
+  // displacement-based response, NOT velocity-based: landmark jitter reads as
+  // high "speed" and would let itself through a velocity gate (hands resting
+  // on a desk visibly shook). Inside the ~2cm noise band the point barely
+  // moves at all; past it, response ramps up fast so waves stay crisp.
+  const d = pTmp.copy(target).sub(cur).length();
+  const rate = 2.5 + (d < 0.015 ? 0 : Math.min(33.5, (d - 0.015) * 320));
   cur.lerp(target, 1 - Math.exp(-rate * dtp));
 }
 
