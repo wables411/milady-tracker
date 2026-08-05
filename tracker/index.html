@@ -315,7 +315,7 @@ const bgSel = document.getElementById('bg');
 const bgFile = document.getElementById('bgFile');
 let bgImage = localStorage.getItem('trk_bgimg') || null;
 bgSel.value = params.get('bg') || localStorage.getItem('trk_bg') || 'transparent';
-if (bgSel.value === 'image' && !bgImage) bgSel.value = 'transparent';
+if (!bgSel.value || (bgSel.value === 'image' && !bgImage)) bgSel.value = 'transparent'; // unknown saved/URL value → transparent
 
 // built-in cult-smiley backdrop — inlined as a data URI so it resolves
 // from any page path (the server aliases / to /tracker/index.html).
