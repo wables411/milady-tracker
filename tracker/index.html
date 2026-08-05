@@ -1494,12 +1494,13 @@ async function toggleRecord() {
       if (e.name === 'NotAllowedError') micHint = ' — mic blocked; allow it via the padlock by the address bar';
     }
   }
-  // webm first (Chrome/Firefox), mp4 fallback for iOS Safari (no webm there)
+  // mp4 first — it plays everywhere (phones, Windows, messaging apps); webm
+  // only as a fallback for browsers that can't record mp4
   const mimes = audio.length
-    ? ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm',
-       'video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4']
-    : ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm',
-       'video/mp4;codecs=avc1.42E01E', 'video/mp4'];
+    ? ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4',
+       'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+    : ['video/mp4;codecs=avc1.42E01E', 'video/mp4',
+       'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
   const mime = mimes.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
   if (!mime) { status('recording not supported in this browser'); return; }
   const recExt = mime.includes('mp4') ? 'mp4' : 'webm';

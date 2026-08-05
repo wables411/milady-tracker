@@ -48,10 +48,10 @@ toggles).
 - **🖼 BG** — green → white → black → cult → image → transparent
   (drag & drop any picture — or right-click / long-press 🖼 BG — to use
   it as the background).
-- **⏺ Record** — capture avatar + background to a video download
-  (`.webm`, or `.mp4` on iPhone; 2 min max; first click asks for the mic
-  so clips have voice). The ⚙ panel's **voice fx** (deep / robot / cute)
-  changes your voice in recordings.
+- **⏺ Record** — capture avatar + background to an `.mp4` download
+  (2 min max; first click asks for the mic so clips have voice). The
+  ⚙ panel's **voice fx** (deep / robot / cute) changes your voice in
+  recordings.
 - **✨ FX** — ✨ sparkles · 💕 hearts · 🌈 multicolor · 📺 crt · 🐟 fisheye.
 - `?demo=1` self-test (no camera) · `?mouthsens=1.3` mouth sensitivity.
 
