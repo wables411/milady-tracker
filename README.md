@@ -6,9 +6,9 @@ face, arm, and torso tracking.
 ## Quick start
 
 **No install:** open **https://vrmilady.net** and **Allow** the camera.
-(Mirror: https://miladyvrm.lawb.xyz — HTTPS on both, so it works on
-phones too. The mic is not needed — the camera tracks your jaw.) On a
-phone, **Add to Home Screen** installs it as a full-screen app.
+(HTTPS, so it works on phones too. The mic is not needed — the camera
+tracks your jaw.) On a phone, **Add to Home Screen** installs it as a
+full-screen app.
 
 **Run it locally:**
 
