@@ -15,7 +15,10 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- opaque, NOT black-translucent: translucent renders the page under the
+     clock (untouchable top buttons) and iOS then short-changes the layout
+     height, leaving a dead band at the bottom of home-screen installs -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Milady">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/silkscreen@5/index.min.css">
 <style>
@@ -51,7 +54,8 @@
      screen even when the URL bar, keyboard, or residual zoom shrinks it */
   #ui {
     position: fixed; z-index: 10; width: 232px;
-    top: calc(10px + var(--vvt, 0px)); left: calc(10px + var(--vvl, 0px));
+    top: calc(10px + var(--vvt, 0px) + env(safe-area-inset-top, 0px));
+    left: calc(10px + var(--vvl, 0px) + env(safe-area-inset-left, 0px));
     max-width: calc(100vw - 20px);
     max-height: calc(100vh - 20px); max-height: calc(100dvh - 20px);
     overflow-y: auto; box-sizing: border-box;
@@ -138,7 +142,8 @@
   /* peek: an outline heart, fully invisible until the mouse finds it */
   #peek {
     position: fixed; z-index: 20;
-    bottom: calc(10px + var(--vvb, 0px)); right: calc(10px + var(--vvr, 0px));
+    bottom: calc(10px + var(--vvb, 0px) + env(safe-area-inset-bottom, 0px));
+    right: calc(10px + var(--vvr, 0px) + env(safe-area-inset-right, 0px));
     width: 46px; height: 46px; border-radius: 50%;
     font-size: 28px; padding: 0; line-height: 1;
     background: transparent; border: none; box-shadow: none;
