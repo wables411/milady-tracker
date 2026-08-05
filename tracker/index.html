@@ -1182,7 +1182,9 @@ const pTmp = new THREE.Vector3();
 // jitter dies, light when moving fast so waves stay snappy), visibility
 // hysteresis + a short hold so arms don't flap between tracked and idle,
 // and duplicate webcam frames are skipped instead of re-solved.
-const ARM_VIS_ON = 0.55, ARM_VIS_OFF = 0.35, ARM_HOLD_MS = 600;
+// OFF at 0.45: half-occluded wrists (hands on a desk) used to keep "tracking"
+// noisy guesses — a stable idle pose reads better than shaky tracking
+const ARM_VIS_ON = 0.55, ARM_VIS_OFF = 0.45, ARM_HOLD_MS = 600;
 const armSmooth = {
   left: { S: new THREE.Vector3(), E: new THREE.Vector3(), W: new THREE.Vector3(), has: false, seenT: 0 },
   right: { S: new THREE.Vector3(), E: new THREE.Vector3(), W: new THREE.Vector3(), has: false, seenT: 0 },
@@ -1204,13 +1206,15 @@ const tSL = new THREE.Vector3(), tSR = new THREE.Vector3();
 const tS = new THREE.Vector3(), tSC = new THREE.Vector3(), tHC = new THREE.Vector3();
 const clampA = (v, m) => Math.min(m, Math.max(-m, v));
 
-function smoothPt(cur, target, dtp) {
+function smoothPt(cur, target, dtp, conf = 1) {
   // displacement-based response, NOT velocity-based: landmark jitter reads as
   // high "speed" and would let itself through a velocity gate (hands resting
   // on a desk visibly shook). Inside the ~2cm noise band the point barely
   // moves at all; past it, response ramps up fast so waves stay crisp.
+  // conf (from landmark visibility) scales the whole response: marginally
+  // visible wrists get sluggish tracking instead of twitchy guesses.
   const d = pTmp.copy(target).sub(cur).length();
-  const rate = 2.5 + (d < 0.015 ? 0 : Math.min(33.5, (d - 0.015) * 320));
+  const rate = (2.5 + (d < 0.015 ? 0 : Math.min(33.5, (d - 0.015) * 320))) * conf;
   cur.lerp(target, 1 - Math.exp(-rate * dtp));
 }
 
@@ -1259,9 +1263,10 @@ function pollPose(now) {
         sm.S.copy(pV[0]); sm.E.copy(pV[1]); sm.W.copy(pV[2]);
         sm.has = true;
       } else {
-        smoothPt(sm.S, pV[0], dtp);
-        smoothPt(sm.E, pV[1], dtp);
-        smoothPt(sm.W, pV[2], dtp);
+        const conf = Math.min(1, Math.max(0.15, (vis - 0.4) / 0.4));
+        smoothPt(sm.S, pV[0], dtp, conf);
+        smoothPt(sm.E, pV[1], dtp, conf);
+        smoothPt(sm.W, pV[2], dtp, conf);
       }
       a.tracked = solveArm(avatarSide, sm.S, sm.E, sm.W);
     } else if (a.tracked && now - sm.seenT < ARM_HOLD_MS) {
@@ -1663,7 +1668,11 @@ function tick(dt, t, now) {
     const a = arms[side];
     if (!a || !a.upper || !a.lower) continue;
     if (a.tracked) {
-      const k = Math.min(1, dt * 12);
+      // angular displacement gate: sub-degree target wobble drifts instead of
+      // snapping, so residual solver noise never reaches the mesh
+      const ang = Math.max(a.upper.quaternion.angleTo(a.tUpper),
+                           a.lower.quaternion.angleTo(a.tLower));
+      const k = Math.min(1, dt * (2.5 + Math.min(12, Math.max(0, ang - 0.02) * 300)));
       a.upper.quaternion.slerp(a.tUpper, k);
       a.lower.quaternion.slerp(a.tLower, k);
       // hand stays aligned with the forearm (no finger/wrist articulation)
