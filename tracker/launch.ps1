@@ -10,14 +10,29 @@ if (-not $listening) {
 }
 
 # open the avatar in its own app window (big-button mode, green screen on).
-# The window gets its OWN browser profile with media prompts auto-granted:
-# --use-fake-ui-for-media-stream skips the permission prompt but uses the
-# REAL camera and mic. The dedicated profile matters twice over — it keeps
-# the grant away from normal browsing, and it forces a fresh browser process
+# The window gets its OWN browser profile whose permission store is pre-seeded
+# with camera+mic grants for the tracker origin — the exact entries the
+# browser writes when a user clicks Allow, so no prompts, no banners, and no
+# test flags. The dedicated profile also forces a fresh browser process
 # (windows joining an already-running browser ignore launch flags entirely).
 $url = "http://127.0.0.1:8787/?bg=green"
 $prof = Join-Path $env:LOCALAPPDATA 'MiladyTracker\profile'
-$flags = @("--app=$url", "--user-data-dir=$prof", "--use-fake-ui-for-media-stream",
+$prefPath = Join-Path $prof 'Default\Preferences'
+$needSeed = $true
+if (Test-Path $prefPath) {
+    if ([IO.File]::ReadAllText($prefPath).Contains('"http://127.0.0.1:8787,*"')) { $needSeed = $false }
+}
+if ($needSeed) {
+    # stale profile from before the grants existed: rebuild it (loses only
+    # this app window's saved toggles, one time)
+    if (Test-Path $prof) { Remove-Item -Recurse -Force $prof }
+    New-Item -ItemType Directory -Force (Split-Path $prefPath) | Out-Null
+    [IO.File]::WriteAllText($prefPath,
+        '{"profile":{"content_settings":{"exceptions":{' +
+        '"media_stream_camera":{"http://127.0.0.1:8787,*":{"setting":1}},' +
+        '"media_stream_mic":{"http://127.0.0.1:8787,*":{"setting":1}}}}}}')
+}
+$flags = @("--app=$url", "--user-data-dir=$prof",
            "--no-first-run", "--no-default-browser-check", "--hide-crash-restore-bubble")
 $brave = "$env:ProgramFiles\BraveSoftware\Brave-Browser\Application\brave.exe"
 if (Test-Path $brave) {
