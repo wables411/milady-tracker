@@ -166,6 +166,8 @@
     color: var(--lcd-ink); border: 1px solid var(--shell-edge); border-radius: 6px;
     box-shadow: inset 0 2px 3px rgba(0,0,0,.35);
   }
+  .linksrow { margin-top: 4px; font-size: 8px; letter-spacing: 1px; }
+  .linksrow a { color: var(--ink); }
   /* keyboard toggle: barely-there chrome, sits beside the milady # inputs */
   .kbtoggle {
     background: transparent; border: none; box-shadow: none;
@@ -249,6 +251,10 @@
   <button id="rezero">re-zero head</button>
   <button id="recordBtn">● record</button>
   <div style="opacity:.7">✕ or H closes this panel<br>drop a picture anywhere = bg image</div>
+  <div class="linksrow">
+    <a href="https://github.com/wables411/milady-tracker" target="_blank" rel="noopener">github</a> ·
+    <a href="https://remilia.net" target="_blank" rel="noopener">remilia.net</a>
+  </div>
 </div>
 <div id="bigbar" class="hidden">
   <button data-act="milady">🤍 Milady #</button>
@@ -481,6 +487,35 @@ if (window.visualViewport && !UI0) {
   vv.addEventListener('scroll', pin);
   pin();
 }
+// ---------- click sounds ----------
+// RemiliaNET-style interface audio (wiki.remilia.org/RemiliaNET): generative
+// sound effects on a pentatonic scale, no audio files. Every button press
+// plucks a random note (plus a quiet octave shimmer). The AudioContext is
+// created lazily inside the first click — the gesture autoplay policies want.
+let sfxCtx = null;
+const PENTA = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99]; // C major pentatonic, two octaves
+function blip() {
+  try {
+    sfxCtx ??= new AudioContext();
+    if (sfxCtx.state === 'suspended') sfxCtx.resume();
+    const t = sfxCtx.currentTime;
+    const f = PENTA[Math.floor(Math.random() * PENTA.length)];
+    for (const [mult, vol, type] of [[1, 0.10, 'triangle'], [2, 0.03, 'sine']]) {
+      const osc = sfxCtx.createOscillator();
+      const gain = sfxCtx.createGain();
+      osc.type = type;
+      osc.frequency.value = f * mult;
+      gain.gain.setValueAtTime(vol, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+      osc.connect(gain).connect(sfxCtx.destination);
+      osc.start(t);
+      osc.stop(t + 0.2);
+    }
+  } catch (e) { /* no WebAudio: buttons just stay silent */ }
+}
+// capture phase: sounds play even for buttons whose handlers stop propagation
+if (!UI0) addEventListener('click', e => { if (e.target.closest?.('button')) blip(); }, true);
+
 const uiPanel = document.getElementById('ui');
 // ✕ returns to the bottom buttons (also un-hides them for ?panel=1 users)
 document.getElementById('uiClose').addEventListener('click', () => {
